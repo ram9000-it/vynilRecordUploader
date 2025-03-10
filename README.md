@@ -1,113 +1,71 @@
-# Vinyl Record Cataloging App
+# Pitaya Records - Vinyl Record Uploader
 
-This application allows users to catalog their vinyl record collection by capturing photos of record covers and additional images, organizing them into batches, and analyzing them to extract information.
+Aplicativo para fotografar e catalogar discos de vinil usando a câmera do celular.
 
-## Features
+## Configuração
 
-- Capture photos of vinyl records using device camera
-- Organize records into batches
-- Store images and metadata in Supabase
-- Analyze record covers to extract information (future feature)
+### Pré-requisitos
 
-## Tech Stack
+- Node.js 18+ instalado
+- Conta no Supabase (https://supabase.com)
+- Conta no Vercel (https://vercel.com)
 
-- **Frontend**: Next.js 14+, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes, Supabase
-- **Storage**: Supabase Storage
-- **Database**: PostgreSQL (via Supabase)
-- **Deployment**: Vercel
+### Configuração do Supabase
 
-## Getting Started
+1. Crie um novo projeto no Supabase chamado "pitaya-uploader"
+2. No SQL Editor do Supabase, execute o script `supabase-schema.sql` para criar as tabelas e políticas
+3. No painel do Supabase, vá para Settings > API e copie:
+   - URL do projeto
+   - anon/public key
 
-### Prerequisites
+### Configuração do Vercel
 
-- Node.js 18+ and npm
-- A Supabase account (for future integration)
+1. Faça deploy do projeto no Vercel
+2. No painel do Vercel, vá para Settings > Environment Variables e adicione:
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL do seu projeto Supabase
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave anon/public do seu projeto Supabase
 
-### Installation
+### Desenvolvimento local
 
-1. Clone the repository
-2. Install dependencies:
+1. Clone o repositório
+2. Instale as dependências:
+   ```
+   npm install
+   ```
+3. Crie um arquivo `.env.local` com as variáveis de ambiente:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=sua-url-do-supabase
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anon
+   ```
+4. Execute o servidor de desenvolvimento:
+   ```
+   npm run dev
+   ```
 
-```bash
-npm install
-```
+## Uso
 
-3. Run the development server:
+1. Acesse o aplicativo pelo URL do Vercel
+2. Na página inicial, crie um novo lote ou selecione um existente
+3. Na página de captura, permita o acesso à câmera quando solicitado
+4. Fotografe o disco de vinil
+5. Adicione informações adicionais se necessário
+6. Envie para análise
 
-```bash
-npm run dev
-```
+## Estrutura do Projeto
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+- `src/app`: Páginas da aplicação (Next.js App Router)
+- `src/components`: Componentes React reutilizáveis
+- `src/utils`: Utilitários, incluindo a integração com o Supabase
 
-## Using the Photo Capture Component
+## Tecnologias
 
-The `PhotoCapture` component allows users to capture photos of vinyl records using their device's camera. Here's how to use it in your own components:
+- Next.js 15
+- React 19
+- Supabase (banco de dados e armazenamento)
+- Vercel (hospedagem)
+- TypeScript
+- Tailwind CSS
 
-### Import the Component
+## Licença
 
-```tsx
-import PhotoCapture from '@/components/PhotoCapture';
-```
-
-### Use the Component
-
-```tsx
-const MyComponent = () => {
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
-
-  const handlePhotosCapture = (photos: string[]) => {
-    setCapturedPhotos(photos);
-    setIsCapturing(false);
-    // Do something with the captured photos
-  };
-
-  const handleCaptureCancel = () => {
-    setIsCapturing(false);
-  };
-
-  return (
-    <div>
-      {isCapturing ? (
-        <div className="fixed inset-0 z-50 bg-black">
-          <PhotoCapture
-            onPhotosCapture={handlePhotosCapture}
-            onCancel={handleCaptureCancel}
-            maxPhotos={5} // Optional, defaults to 5
-          />
-        </div>
-      ) : (
-        <button onClick={() => setIsCapturing(true)}>
-          Capture Photos
-        </button>
-      )}
-    </div>
-  );
-};
-```
-
-### Props
-
-- `onPhotosCapture`: Function called when photos are captured, receives an array of base64-encoded images
-- `onCancel`: Function called when the user cancels the capture process
-- `maxPhotos`: (Optional) Maximum number of photos that can be captured, defaults to 5
-
-### Notes
-
-- The first photo captured is automatically marked as the cover photo
-- The component handles camera permissions and errors
-- Photos are returned as base64-encoded strings, ready to be uploaded to Supabase Storage
-
-## Future Enhancements
-
-- Integration with Supabase for data storage
-- Record analysis using image recognition
-- Batch management
-- Export functionality
-- Offline mode
-
-## License
-
-This project is licensed under the MIT License. 
+Este projeto é proprietário e confidencial. © Pitaya Records 2024. 
