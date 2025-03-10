@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getLotes, createLote, Lote, testConnection } from '@/utils/supabase';
+import { getLotes, createLote, Lote, testConnection, listAllData } from '@/utils/supabase';
 
 export default function Home() {
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -11,6 +11,7 @@ export default function Home() {
   const [novoLoteNome, setNovoLoteNome] = useState('');
   const [showLoteForm, setShowLoteForm] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{success: boolean, message: string} | null>(null);
+  const [isListingData, setIsListingData] = useState(false);
 
   // Testar conexão com o Supabase
   useEffect(() => {
@@ -81,6 +82,20 @@ export default function Home() {
     }
   };
 
+  // Função para listar todos os dados
+  const handleListAllData = async () => {
+    try {
+      setIsListingData(true);
+      console.log('Iniciando listagem de todos os dados...');
+      const result = await listAllData();
+      console.log('Resultado completo:', result);
+      setIsListingData(false);
+    } catch (error) {
+      console.error('Erro ao listar dados:', error);
+      setIsListingData(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center p-4 md:p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex mb-8">
@@ -102,12 +117,26 @@ export default function Home() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Lotes de Discos</h2>
-            <button
-              onClick={() => setShowLoteForm(!showLoteForm)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              {showLoteForm ? 'Cancelar' : 'Novo Lote'}
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowLoteForm(!showLoteForm)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                {showLoteForm ? 'Cancelar' : 'Novo Lote'}
+              </button>
+              <button
+                onClick={handleListAllData}
+                disabled={isListingData}
+                className={`px-4 py-2 rounded flex items-center ${
+                  isListingData ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+              >
+                {isListingData && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                )}
+                Ver Dados no Console
+              </button>
+            </div>
           </div>
 
           {showLoteForm && (

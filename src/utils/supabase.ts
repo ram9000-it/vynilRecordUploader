@@ -307,6 +307,122 @@ export const getAnalise = async (discoId: string): Promise<Analise | null> => {
   return data as Analise;
 };
 
+// Função para listar todos os lotes e discos com detalhes
+export const listAllData = async () => {
+  console.log('===== LISTANDO TODOS OS DADOS DO SUPABASE =====');
+  
+  try {
+    // 1. Buscar todos os lotes
+    console.log('Buscando lotes...');
+    const { data: lotes, error: lotesError } = await supabase
+      .from('lotes')
+      .select('*')
+      .order('data_criacao', { ascending: false });
+      
+    if (lotesError) {
+      console.error('Erro ao buscar lotes:', lotesError);
+      return { success: false, error: lotesError };
+    }
+    
+    console.log(`Encontrados ${lotes.length} lotes:`);
+    lotes.forEach(lote => {
+      console.log(`- Lote ID: ${lote.id}`);
+      console.log(`  Nome: ${lote.nome}`);
+      console.log(`  Data de Criação: ${new Date(lote.data_criacao).toLocaleString()}`);
+      console.log(`  Status: ${lote.status}`);
+    });
+    
+    // 2. Para cada lote, buscar os discos
+    console.log('\nBuscando discos para cada lote...');
+    const lotesComDiscos = [];
+    
+    for (const lote of lotes) {
+      const { data: discos, error: discosError } = await supabase
+        .from('discos')
+        .select('*')
+        .eq('lote_id', lote.id)
+        .order('data_adicao', { ascending: false });
+        
+      if (discosError) {
+        console.error(`Erro ao buscar discos do lote ${lote.id}:`, discosError);
+        continue;
+      }
+      
+      console.log(`\n- Lote: ${lote.nome} (${lote.id}) - ${discos.length} discos:`);
+      
+      const discosComImagens = [];
+      
+      // 3. Para cada disco, buscar as imagens
+      for (const disco of discos) {
+        const { data: imagens, error: imagensError } = await supabase
+          .from('imagens')
+          .select('*')
+          .eq('disco_id', disco.id);
+          
+        if (imagensError) {
+          console.error(`Erro ao buscar imagens do disco ${disco.id}:`, imagensError);
+          continue;
+        }
+        
+        console.log(`  - Disco ID: ${disco.id}`);
+        console.log(`    Data de Adição: ${new Date(disco.data_adicao).toLocaleString()}`);
+        console.log(`    Status: ${disco.status}`);
+        console.log(`    Imagens: ${imagens.length}`);
+        
+        imagens.forEach((imagem, index) => {
+          console.log(`      ${index + 1}. ${imagem.tipo_imagem}: ${imagem.url}`);
+        });
+        
+        // 4. Buscar análise do disco, se existir
+        const { data: analise, error: analiseError } = await supabase
+          .from('analises')
+          .select('*')
+          .eq('disco_id', disco.id)
+          .maybeSingle();
+          
+        if (!analiseError && analise) {
+          console.log(`    Análise:`);
+          console.log(`      Artista: ${analise.artista || 'Não informado'}`);
+          console.log(`      Álbum: ${analise.album || 'Não informado'}`);
+          console.log(`      Valor Estimado: R$ ${analise.valor_estimado?.toFixed(2) || '0.00'}`);
+        }
+        
+        discosComImagens.push({
+          ...disco,
+          imagens,
+          analise: analise || null
+        });
+      }
+      
+      lotesComDiscos.push({
+        ...lote,
+        discos: discosComImagens
+      });
+    }
+    
+    console.log('\n===== RESUMO =====');
+    console.log(`Total de Lotes: ${lotes.length}`);
+    const totalDiscos = lotesComDiscos.reduce((acc, lote) => acc + lote.discos.length, 0);
+    console.log(`Total de Discos: ${totalDiscos}`);
+    const totalImagens = lotesComDiscos.reduce((acc, lote) => 
+      acc + lote.discos.reduce((discAcc, disc) => discAcc + disc.imagens.length, 0), 0);
+    console.log(`Total de Imagens: ${totalImagens}`);
+    
+    return { 
+      success: true, 
+      data: lotesComDiscos,
+      summary: {
+        totalLotes: lotes.length,
+        totalDiscos,
+        totalImagens
+      }
+    };
+  } catch (err) {
+    console.error('Erro ao listar dados:', err);
+    return { success: false, error: err };
+  }
+};
+
 // To be implemented in the future:
 // - Function to send a batch of discos for analysis
 // - Function to update disco status
