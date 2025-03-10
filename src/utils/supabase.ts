@@ -40,15 +40,69 @@ export interface Analise {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+console.log('Inicializando cliente Supabase com:');
+console.log('URL:', supabaseUrl);
+console.log('Key (primeiros 5 caracteres):', supabaseKey.substring(0, 5));
+
 // Criar o cliente Supabase
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Função para testar a conexão com o Supabase
+export const testConnection = async () => {
+  try {
+    console.log('Testando conexão com o Supabase...');
+    // Tenta listar as tabelas para verificar a conexão
+    const { data, error } = await supabase.from('lotes').select('count');
+    
+    if (error) {
+      console.error('Erro ao conectar com o Supabase:', error);
+      return { success: false, error };
+    }
+    
+    console.log('Conexão com o Supabase bem-sucedida!');
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exceção ao testar conexão:', err);
+    return { success: false, error: err };
+  }
+};
 
 // Função para fazer upload de imagens
 export const uploadImages = async (
   discoId: string,
   images: string[]
 ): Promise<Imagem[]> => {
-  console.log('Uploading images for disco', discoId);
+  console.log('Iniciando upload de imagens para o disco', discoId);
+  console.log('Número de imagens:', images.length);
+  
+  // Verificar se o bucket existe, se não, tentar criá-lo
+  try {
+    const { data: bucketExists, error: bucketCheckError } = await supabase
+      .storage
+      .getBucket('imagens');
+      
+    if (bucketCheckError) {
+      console.log('Bucket não encontrado, tentando criar...');
+      const { error: createBucketError } = await supabase
+        .storage
+        .createBucket('imagens', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg'],
+          fileSizeLimit: 5242880, // 5MB
+        });
+        
+      if (createBucketError) {
+        console.error('Erro ao criar bucket:', createBucketError);
+        throw createBucketError;
+      }
+      
+      console.log('Bucket criado com sucesso');
+    } else {
+      console.log('Bucket já existe:', bucketExists);
+    }
+  } catch (err) {
+    console.error('Erro ao verificar/criar bucket:', err);
+  }
   
   const results: Imagem[] = [];
   
@@ -57,6 +111,8 @@ export const uploadImages = async (
     const isCapaImage = i === 0;
     
     try {
+      console.log(`Processando imagem ${i+1}/${images.length}`);
+      
       // Converter base64 para Blob
       const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
       const byteCharacters = atob(base64Data);
@@ -75,20 +131,33 @@ export const uploadImages = async (
       }
       
       const blob = new Blob(byteArrays, { type: 'image/jpeg' });
-      const file = new File([blob], `${discoId}_${i}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const fileName = `${discoId}_${i}_${Date.now()}.jpg`;
+      
+      console.log(`Fazendo upload do arquivo ${fileName}`);
       
       // Upload para o Supabase Storage
       const { data, error } = await supabase.storage
         .from('imagens')
-        .upload(`${discoId}/${file.name}`, file);
+        .upload(`${discoId}/${fileName}`, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: true
+        });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao fazer upload da imagem:', error);
+        throw error;
+      }
+      
+      console.log('Upload bem-sucedido:', data);
       
       // Obter URL pública
       const { data: urlData } = supabase.storage
         .from('imagens')
-        .getPublicUrl(`${discoId}/${file.name}`);
+        .getPublicUrl(`${discoId}/${fileName}`);
         
+      console.log('URL pública obtida:', urlData);
+      
       // Criar registro na tabela imagens
       const { data: imageRecord, error: dbError } = await supabase
         .from('imagens')
@@ -100,11 +169,15 @@ export const uploadImages = async (
         .select()
         .single();
         
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Erro ao inserir registro da imagem no banco:', dbError);
+        throw dbError;
+      }
       
+      console.log('Registro da imagem criado:', imageRecord);
       results.push(imageRecord as Imagem);
     } catch (err) {
-      console.error('Error uploading image:', err);
+      console.error(`Erro ao processar imagem ${i+1}:`, err);
       // Fallback para não quebrar o fluxo se uma imagem falhar
       results.push({
         id: `error-${Date.now()}-${i}`,
@@ -115,6 +188,7 @@ export const uploadImages = async (
     }
   }
   
+  console.log(`Upload concluído. ${results.length} imagens processadas.`);
   return results;
 };
 
@@ -155,21 +229,31 @@ export const getLotes = async (): Promise<Lote[]> => {
 
 // Função para criar um novo lote
 export const createLote = async (nome: string): Promise<Lote> => {
-  console.log('Creating new lote', nome);
+  console.log('Criando novo lote com nome:', nome);
+  console.log('Usando cliente Supabase com URL:', supabaseUrl);
   
-  const { data, error } = await supabase
-    .from('lotes')
-    .insert({
-      nome,
-      data_criacao: new Date().toISOString(),
-      status: 'pendente',
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('lotes')
+      .insert({
+        nome,
+        data_criacao: new Date().toISOString(),
+        status: 'pendente',
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Erro do Supabase ao criar lote:', error);
+      throw error;
+    }
     
-  if (error) throw error;
-  
-  return data as Lote;
+    console.log('Lote criado com sucesso no Supabase:', data);
+    return data as Lote;
+  } catch (err) {
+    console.error('Exceção ao criar lote:', err);
+    throw err;
+  }
 };
 
 // Função para atualizar o status de um disco

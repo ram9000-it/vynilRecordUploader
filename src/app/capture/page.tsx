@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import PhotoCapture from '@/components/PhotoCapture';
 import Link from 'next/link';
 import { createDisco, uploadImages } from '@/utils/supabase';
+import { getLotes } from '@/utils/supabase';
+import { createLote } from '@/utils/supabase';
 
 export default function CapturePage() {
   const router = useRouter();
@@ -81,10 +83,30 @@ export default function CapturePage() {
       setIsLoading(true);
       
       // 1. Criar um novo disco no lote
+      console.log('Criando disco com loteId:', recordInfo.lotId);
+      
+      // Verificar se o loteId é válido (UUID)
+      if (!recordInfo.lotId || recordInfo.lotId === 'lote-demo') {
+        // Se não tiver um loteId válido, buscar o primeiro lote disponível
+        console.log('LoteId não é válido, buscando o primeiro lote disponível...');
+        const lotes = await getLotes();
+        if (lotes && lotes.length > 0) {
+          recordInfo.lotId = lotes[0].id;
+          console.log('Usando loteId do primeiro lote disponível:', recordInfo.lotId);
+        } else {
+          // Se não houver lotes, criar um novo
+          console.log('Nenhum lote encontrado, criando um novo...');
+          const novoLote = await createLote('Lote Automático');
+          recordInfo.lotId = novoLote.id;
+          console.log('Novo lote criado com id:', recordInfo.lotId);
+        }
+      }
+      
       const disco = await createDisco(recordInfo.lotId);
       console.log('Disco criado:', disco);
       
       // 2. Fazer upload das imagens e associá-las ao disco
+      console.log('Iniciando upload de', capturedPhotos.length, 'imagens para o disco', disco.id);
       const imagens = await uploadImages(disco.id, capturedPhotos);
       console.log('Imagens enviadas:', imagens);
       
@@ -93,8 +115,8 @@ export default function CapturePage() {
       // Navegar de volta para a página inicial
       router.push('/');
     } catch (error) {
-      console.error('Erro ao salvar o disco:', error);
-      alert('Erro ao salvar o disco. Por favor, tente novamente.');
+      console.error('Erro detalhado ao salvar o disco:', error);
+      alert(`Erro ao salvar o disco. Por favor, tente novamente. Detalhes: ${JSON.stringify(error)}`);
     } finally {
       setIsLoading(false);
     }

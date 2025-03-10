@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getLotes, createLote, Lote } from '@/utils/supabase';
+import { getLotes, createLote, Lote, testConnection } from '@/utils/supabase';
 
 export default function Home() {
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -10,13 +10,41 @@ export default function Home() {
   const [isCreatingLote, setIsCreatingLote] = useState(false);
   const [novoLoteNome, setNovoLoteNome] = useState('');
   const [showLoteForm, setShowLoteForm] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{success: boolean, message: string} | null>(null);
+
+  // Testar conexão com o Supabase
+  useEffect(() => {
+    const testarConexao = async () => {
+      try {
+        const result = await testConnection();
+        if (result.success) {
+          setConnectionStatus({ success: true, message: 'Conexão com o Supabase estabelecida com sucesso!' });
+        } else {
+          setConnectionStatus({ 
+            success: false, 
+            message: `Falha na conexão com o Supabase: ${JSON.stringify(result.error)}` 
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao testar conexão:', error);
+        setConnectionStatus({ 
+          success: false, 
+          message: `Erro ao testar conexão: ${JSON.stringify(error)}` 
+        });
+      }
+    };
+
+    testarConexao();
+  }, []);
 
   // Carregar lotes do Supabase
   useEffect(() => {
     const carregarLotes = async () => {
       try {
         setIsLoading(true);
+        console.log('Carregando lotes...');
         const lotesData = await getLotes();
+        console.log('Lotes carregados:', lotesData);
         setLotes(lotesData);
       } catch (error) {
         console.error('Erro ao carregar lotes:', error);
@@ -35,12 +63,18 @@ export default function Home() {
 
     try {
       setIsCreatingLote(true);
+      console.log('Iniciando criação de lote:', novoLoteNome);
+      console.log('URL do Supabase:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('Chave do Supabase (primeiros 5 caracteres):', 
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 5));
+      
       const novoLote = await createLote(novoLoteNome);
+      console.log('Lote criado com sucesso:', novoLote);
       setLotes(prev => [novoLote, ...prev]);
       setNovoLoteNome('');
       setShowLoteForm(false);
     } catch (error) {
-      console.error('Erro ao criar lote:', error);
+      console.error('Erro detalhado ao criar lote:', error);
       alert('Erro ao criar lote. Por favor, tente novamente.');
     } finally {
       setIsCreatingLote(false);
@@ -54,6 +88,15 @@ export default function Home() {
           Pitaya Records - Catalogação de Discos de Vinil
         </p>
       </div>
+
+      {connectionStatus && (
+        <div className={`w-full max-w-5xl mb-4 p-4 rounded-lg ${
+          connectionStatus.success ? 'bg-green-100 border border-green-300 text-green-800' : 
+          'bg-red-100 border border-red-300 text-red-800'
+        }`}>
+          <p className="font-medium">{connectionStatus.success ? '✅ ' : '❌ '}{connectionStatus.message}</p>
+        </div>
+      )}
 
       <div className="w-full max-w-5xl mb-8">
         <div className="bg-white rounded-lg shadow-lg p-6">
